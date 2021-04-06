@@ -1,8 +1,12 @@
 import pandas as pd
 import random
 
-# df = pd.read_csv('Jie03.csv')
+df = pd.read_csv('Jie03.csv')
 # print(df)
+
+# df['duration'] = (pd.to_datetime(df['rider latest arrival time']) - pd.to_datetime(df['rider earliest departure time'])).dt.seconds
+# df['speed'] = df['distance_travelled'] / df['duration']
+# print(df['speed'].sum()/ len(df['speed']))
 
 
 
@@ -33,3 +37,5 @@ b'LUXURY'       2376    3
 #     driver_model_list.append(random_pick([1,2,3,4], [0.1,0.2,0.3,0.4]))
 #
 # print(driver_model_list)
+
+

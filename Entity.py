@@ -2,10 +2,22 @@
 the entity file incorporates the classes of Rider and Driver
 property begin with _ denotes it is a private attribute
 '''
+
+from Tools import *
+
 import random
 import pandas as pd
 import numpy as np
+from configparser import ConfigParser
+import ast
 
+
+
+cp = ConfigParser()
+cp.read('para.ini')
+
+alpha = int(cp.get('parameters', 'alpha'))
+beta = int(cp.get('parameters', 'beta'))
 
 '''
 b'REGULAR'    689869    0
@@ -14,7 +26,6 @@ b'PREMIUM'      6357    2
 b'LUXURY'       2376    3
 '''
 
-model_type_dict = {''}
 
 # a tuple (latitude, longitude) for origin and destination
 class Rider:
@@ -41,11 +52,11 @@ class Rider:
         return self._rider_destination
 
     @property
-    def get_rider_earliest_starting(self):
+    def get_rider_earliest_departure_time(self):
         return self._rider_earliest_departure_time
 
     @property
-    def get_rider_latest_arrival(self):
+    def get_rider_latest_departure_time(self):
         return self._rider_latest_departure_time
 
     @property
@@ -55,25 +66,31 @@ class Rider:
     rider_list = []
 
     @classmethod
-    def get_rider_list(cls, df, time_slot, number_of_driver):
+    def get_rider_list(cls, df):
         for i in range(len(df)):
             origin_latitude = df.iloc[i]['start_location_lat']
             origin_longitude = df.iloc[i]['start_location_long']
             destination_latitude = df.iloc[i]['end_location_lat']
             destination_longitude = df.iloc[i]['end_location_long']
 
-            '''in data set, pickup time -> requested time; pickup time + 30 -> es; dropoff time + 60 -> la'''
-            edt = (pd.to_datetime(df.iloc[i]['rider earliest departure time']))
-            ldt = (pd.to_datetime(df.iloc[i]['rider latest departure time']))     #  add one column in the data set, value: edt+10
+            # edt = (pd.to_datetime(df.iloc[i]['rider earliest departure time']))
+            # ldt = (pd.to_datetime(df.iloc[i]['rider latest departure time']))
+            # load time as a string???
+            edt = df.iloc[i]['rider earliest departure time']
+            ldt = df.iloc[i]['rider latest departure time']
 
             request_model_type = df.iloc[i]['requested_car_category']
 
-            print('rider {}, O is {}, D is {}, es is {}, la is {}, request_model_type is {}'.format(i, (origin_latitude, origin_longitude), (destination_latitude, destination_longitude), edt, ldt, request_model_type))
+            # print('rider {}, O is {}, D is {}, es is {}, la is {}, request_model_type is {}'.format(i, (origin_latitude, origin_longitude), (destination_latitude, destination_longitude), edt, ldt, request_model_type))
 
             cls.rider_list.append(
                 Rider(i, (origin_latitude, origin_longitude), (destination_latitude, destination_longitude), edt, ldt, request_model_type))
         return cls.rider_list
 
+    # '''rider utility for objective function'''
+    # @staticmethod
+    # def get_rider_utility_matrix():
+    #     pass
     # @classmethod
     # def get_rider_by_rider_id(cls, rider_id):    # this method can be replaced by navie visiting the array index....
     #     return cls.rider_list[rider_id]
@@ -93,7 +110,7 @@ lat_upper_bound = 30.481
 log_lower_bound = -97.748
 log_upper_bound = -97.642
 class Driver:
-    def __init__(self, driver_id, driver_origin, driver_destination, driver_model_type):
+    def __init__(self, driver_id, driver_origin, driver_model_type):
         self._driver_id = driver_id
         self._driver_origin = driver_origin
         self._driver_model_type = driver_model_type
@@ -121,7 +138,7 @@ class Driver:
             origin_latitude = np.random.uniform(lat_lower_bound, lat_upper_bound)
             origin_longitude = np.random.uniform(log_lower_bound, log_upper_bound)
             model_type = driver_model_list[i]    #  remain unsolved...
-            print('driver {}, O is {}, model type is {}'.format(i, (origin_latitude, origin_longitude), model_type))
+            # print('driver {}, Origin is {}, model type is {}'.format(i, (origin_latitude, origin_longitude), model_type))
             cls.driver_list.append(Driver(i, (origin_latitude, origin_longitude), model_type))
         return cls.driver_list
 
@@ -141,6 +158,22 @@ class Driver:
         driver_model_list = []
         for i in range(number_of_driver):
             driver_model_list.append(Driver.random_model_generation([0, 1], [0.95, 0.05]))
+
+        return driver_model_list
+            # driver_model_list.append(Driver.random_model_generation([0, 1, 2, 3], [0.95, 0.05]))
+
+    # '''driver utility for objective function'''
+    # @staticmethod
+    # def get_driver_utility_matrix(driver_list, rider_list):
+    #     # driver_utility_matrix = []
+    #     # for driver in driver_list:
+    #     #     for rider in rider_list:
+    #     #         distance =
+    #     travel_distance_matrix = get_travel_distance_matrix_of_driver_origin_and_rider_origin(driver_list, rider_list)
+    #     travel_time_matrix = get_travel_time_matrix_of_driver_origin_and_rider_origin(driver_list, rider_list)
+    #
+    #     return 1/ (np.array(travel_distance_matrix) * alpha + np.array(travel_time_matrix) * beta)
+
     # @classmethod
     # def get_driver_by_driver_id(cls, driver_id):
     #     return cls.driver_list[driver_id]
