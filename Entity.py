@@ -30,13 +30,14 @@ b'LUXURY'       2376    3
 # a tuple (latitude, longitude) for origin and destination
 class Rider:
     def __init__(self, rider_id, rider_origin, rider_destination, rider_earliest_departure_time,
-                 rider_latest_departure_time, rider_request_model_type):
+                 rider_latest_departure_time, rider_request_model_type, rider_trip_distance):
         self._rider_id = rider_id
         self._rider_origin = rider_origin
         self._rider_destination = rider_destination
         self._rider_earliest_departure_time = rider_earliest_departure_time
         self._rider_latest_departure_time = rider_latest_departure_time
         self._rider_request_model_type = rider_request_model_type
+        self._rider_trip_distance = rider_trip_distance
         self._matched_driver_id = -1  # not matched yet
 
     @property  # like getter method
@@ -63,6 +64,10 @@ class Rider:
     def get_rider_request_model_type(self):
         return self._rider_request_model_type
 
+    @property
+    def get_rider_trip_distance(self):
+        return self._rider_trip_distance
+
     rider_list = []
 
     @classmethod
@@ -81,10 +86,11 @@ class Rider:
 
             request_model_type = df.iloc[i]['requested_car_category']
 
+            rider_trip_distance = df.iloc[i]['distance_travelled'] / 1000
             # print('rider {}, O is {}, D is {}, es is {}, la is {}, request_model_type is {}'.format(i, (origin_latitude, origin_longitude), (destination_latitude, destination_longitude), edt, ldt, request_model_type))
 
             cls.rider_list.append(
-                Rider(i, (origin_latitude, origin_longitude), (destination_latitude, destination_longitude), edt, ldt, request_model_type))
+                Rider(i, (origin_latitude, origin_longitude), (destination_latitude, destination_longitude), edt, ldt, request_model_type, rider_trip_distance))
         return cls.rider_list
 
     # '''rider utility for objective function'''

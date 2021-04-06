@@ -84,6 +84,21 @@ def get_converted_rider_time(rider_time):
     rider_time = datetime.strptime(rider_time, '%m/%d/%Y %H:%M')
     return rider_time.hour + rider_time.minute / 60
 
+#  the coefficients for driver utility
+# (b - a) * random_sample() + a,  random value ranges in [a, b)
+a = 0
+b = 1
+def get_coefficient_4_constraint():
+    beta_t = (b-a) * np.random.random_sample() + a    #  travel time coeff                 (1,2)
+    beta_d = (b-a) * np.random.random_sample() + a    #  distance coeff o(d)-o(r)   (1,2)
+    beta_s = (b-a) * np.random.random_sample() + a    #  price coeff                (1,2)
+    beta_k = (b-a) * np.random.random_sample() + a    #  distance coeff o(r)-w(r)   (1,2)
+    beta_c = (b-a) * np.random.random_sample() + a    #  driver refuse to go coeff  (1,2)
+
+    return beta_t, beta_d, beta_s, beta_k, beta_c
+
+
+
 
 if __name__ == '__main__':
     pass

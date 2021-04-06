@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 
-df = pd.read_csv('Jie03.csv')
+# df = pd.read_csv('Jie03.csv')
 # print(df)
 
 # df['duration'] = (pd.to_datetime(df['rider latest arrival time']) - pd.to_datetime(df['rider earliest departure time'])).dt.seconds
@@ -37,5 +37,13 @@ b'LUXURY'       2376    3
 #     driver_model_list.append(random_pick([1,2,3,4], [0.1,0.2,0.3,0.4]))
 #
 # print(driver_model_list)
+
+# data_tuple_list = []
+#
+# data_tuple_list.append(tuple((1,2)))
+#
+# print(data_tuple_list[0][1])
+
+print(random.random())
 
 

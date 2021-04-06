@@ -152,29 +152,102 @@ model.optimize()
 
 number_of_matched_rider = 0
 matched_driver_index_list = []
+# the input for the second-stage decision-making model
+matched_result_list =[]
 for v in model.getVars():
     if v.VarName[:1] == 'x' and v.X == 1.0:
         i = v.index  // NUMBER_OF_RIDER
         j = v.index  % NUMBER_OF_RIDER
         number_of_matched_rider += 1
         matched_driver_index_list.append(i)
+        matched_result_list.append(tuple((i, j)))
         print('driver {} with model type {} is assigned to rider {} with model type {}'.format(i, driver_list[i].get_driver_model_type, j, rider_list[j].get_rider_request_model_type))
 print('~~~~~~~~~~number of matched rider is ', number_of_matched_rider)
 
-for v in model.getVars():
-    if (v.VarName[:2] == 'dt') and ((v.index - NUMBER_OF_DRIVER*NUMBER_OF_RIDER) in matched_driver_index_list):
-        print('var {} with value {}'.format(v.VarName, v.X))
 
-#
+'''print the matched pair'''
+for pair in matched_result_list:
+    print('driver {} is matched rider {}'.format(pair[0], pair[1]))
+# for v in model.getVars():
+#     if (v.VarName[:2] == 'dt') and ((v.index - NUMBER_OF_DRIVER*NUMBER_OF_RIDER) in matched_driver_index_list):
+#         print('var {} with value {}'.format(v.VarName, v.X))
+
+
 end = datetime.now()
 print('time elapse.....', end - begin)
 
 
+'''
+the following is the second-stage decision, acceptance optimization
+'''
+
+model_acc = grb.Model('acc')
+
+# the decision variable for acceptance probality
+p = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, ub=1, vtype=GRB.CONTINUOUS, name='p')
+# the price that platform gives driver
+s = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='s')
+# the auxiliary variable. f*(1-p) = p, exp(s-m) = f
+f = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='f')
+# the auxiliary variable.  q = s-m,  exp(q) = f
+q = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='q')
+# input is from matched_result_list
+obj_expr_2 = QuadExpr()
+for i in range(len(matched_result_list)):
+    driver_rider_pair = matched_result_list[i]
+    print('~~~~~~~~~~', driver_rider_pair)
+    rider = rider_list[driver_rider_pair[1]]
+    obj_expr_2.addTerms(rider.get_rider_trip_distance, p[i])
+    obj_expr_2.addTerms(-1, p[i], s[i])
+
+model_acc.setObjective(obj_expr_2, sense=GRB.MAXIMIZE)
+model_acc.setParam('NonConvex', 2)
+model_acc.setParam('TimeLimit', 60 * 10)
+
+# model_acc.write('2.lp')
+
+# f*(1-p) = p
+model_acc.addConstrs(f[i] - f[i] * p[i] == p[i] for i in range(len(matched_result_list)))
+
+# q = s-m,  exp(q) = f
+for i in range(len(matched_result_list)):
+    model_acc.addGenConstrExp(q[i], f[i])
+
+# q = s-m
+# model_acc.addConstrs(q[i] == s[i] - get_value_4_constraint() for i in range(len(matched_result_list)))
+for i in range(len(matched_result_list)):
+    value_result = 0
+    driver_rider_pair = matched_result_list[i]    #  get matched driver-rider info
+    driver_id = driver_rider_pair[0]
+    rider_id = driver_rider_pair[1]
+
+    beta_t, beta_d, beta_s, beta_k, beta_c = get_coefficient_4_constraint()
+
+    value_result += beta_c
+    value_result += -beta_t * travel_time_matrix[driver_id][rider_id]
+    value_result += -beta_d * travel_distance_matrix[driver_id][rider_id]
+    value_result += -beta_k * rider_list[rider_id].get_rider_trip_distance
+
+    print('~~~~~~~~~~value result is ', value_result)
+    # model_acc.addConstr(q[i] == s[i] - 1)
+
+    model_acc.addConstr(q[i] <= s[i] - value_result)
 
 
 
+model_acc.update()
+model_acc.optimize()
 
+''''''
+for v in model_acc.getVars():
+    if v.VarName[:1] == 'p' and v.X != 0.0:
+        print('driver {} matched rider {} with probablity {}'.format(matched_result_list[v.index][0], matched_result_list[v.index][1], v.X))
+        # print('var {} with value {}'.format(v.VarName, v.X))
 
-
+'''printing price'''
+for v in model_acc.getVars():
+    if v.VarName[:1] == 's' and v.X != 0.0:
+        print('var name {} with value {} '.format(v.VarName, v.X))
+        # print('var {} with value {}'.format(v.VarName, v.X))
 
 
