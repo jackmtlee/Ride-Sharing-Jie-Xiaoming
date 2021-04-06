@@ -97,7 +97,6 @@ model.setObjective(obj_expr)
 
 
 # constraint : z_{i} * (dt_{i} + t_{l(i), o(j)} - et_{j} + 1) = 1
-
 for d in range(NUMBER_OF_DRIVER):
     for r in range(NUMBER_OF_RIDER):
         rider = rider_list[r]
@@ -152,16 +151,18 @@ model.optimize()
 # print('**************printing matching results*****************')
 
 number_of_matched_rider = 0
+matched_driver_index_list = []
 for v in model.getVars():
     if v.VarName[:1] == 'x' and v.X == 1.0:
         i = v.index  // NUMBER_OF_RIDER
         j = v.index  % NUMBER_OF_RIDER
         number_of_matched_rider += 1
+        matched_driver_index_list.append(i)
         print('driver {} with model type {} is assigned to rider {} with model type {}'.format(i, driver_list[i].get_driver_model_type, j, rider_list[j].get_rider_request_model_type))
 print('~~~~~~~~~~number of matched rider is ', number_of_matched_rider)
 
 for v in model.getVars():
-    if v.VarName[:2] == 'dt' and v.X != 0.0:
+    if (v.VarName[:2] == 'dt') and ((v.index - NUMBER_OF_DRIVER*NUMBER_OF_RIDER) in matched_driver_index_list):
         print('var {} with value {}'.format(v.VarName, v.X))
 
 #
