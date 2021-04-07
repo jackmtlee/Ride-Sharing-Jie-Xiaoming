@@ -25,7 +25,7 @@ cp = ConfigParser()
 cp.read('para.ini')
 
 NUMBER_OF_DRIVER = int(cp.get('numbers', 'number_of_driver'))
-
+PRICE = int(cp.get('price', 'price'))
 H = 999999
 
 # the starting time and end time for batching window
@@ -182,24 +182,26 @@ the following is the second-stage decision, acceptance optimization
 '''
 
 model_acc = grb.Model('acc')
-
+NUMBER_OF_MATCHED_DRIVER = len(matched_result_list)
 # the decision variable for acceptance probality
-p = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, ub=1, vtype=GRB.CONTINUOUS, name='p')
+p = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, ub=1, vtype=GRB.CONTINUOUS, name='p')
 # the price that platform gives driver
-s = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='s')
+s = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=1.2, vtype=GRB.CONTINUOUS, name='s')
 # the auxiliary variable. f*(1-p) = p, exp(s-m) = f
-f = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='f')
+f = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='f')
 # the auxiliary variable.  q = s-m,  exp(q) = f
-q = model_acc.addVars(NUMBER_OF_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='q')
+q = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='q')
 # input is from matched_result_list
 obj_expr_2 = QuadExpr()
 for i in range(len(matched_result_list)):
     driver_rider_pair = matched_result_list[i]
     print('~~~~~~~~~~', driver_rider_pair)
     rider = rider_list[driver_rider_pair[1]]
-    obj_expr_2.addTerms(rider.get_rider_trip_distance, p[i])
+    #distance = PRICE*rider.get_rider_trip_distance
+    #obj_expr_2.addTerms(distance, p[i])
+    obj_expr_2.addTerms(PRICE*rider.get_rider_trip_distance, p[i])
     obj_expr_2.addTerms(-1, p[i], s[i])
-
+    #obj_expr_2.addTerms(-rider.get_rider_trip_distance, p[i], s[i])
 model_acc.setObjective(obj_expr_2, sense=GRB.MAXIMIZE)
 model_acc.setParam('NonConvex', 2)
 model_acc.setParam('TimeLimit', 60 * 10)
@@ -224,14 +226,14 @@ for i in range(len(matched_result_list)):
     beta_t, beta_d, beta_s, beta_k, beta_c = get_coefficient_4_constraint()
 
     value_result += beta_c
-    value_result += -beta_t * travel_time_matrix[driver_id][rider_id]
-    value_result += -beta_d * travel_distance_matrix[driver_id][rider_id]
+    value_result += beta_t * travel_time_matrix[driver_id][rider_id]
+    value_result += beta_d * travel_distance_matrix[driver_id][rider_id]
     value_result += -beta_k * rider_list[rider_id].get_rider_trip_distance
 
     print('~~~~~~~~~~value result is ', value_result)
     # model_acc.addConstr(q[i] == s[i] - 1)
 
-    model_acc.addConstr(q[i] <= s[i] - value_result)
+    model_acc.addConstr(q[i] <= beta_s*s[i] - value_result)
 
 
 
@@ -249,5 +251,37 @@ for v in model_acc.getVars():
     if v.VarName[:1] == 's' and v.X != 0.0:
         print('var name {} with value {} '.format(v.VarName, v.X))
         # print('var {} with value {}'.format(v.VarName, v.X))
+
+
+'''
+the following is the decision with uniform price
+'''
+
+total_result = 0
+for i in range(len(matched_result_list)):
+    value_result = 0
+    z = 0
+
+    driver_rider_pair = matched_result_list[i]    #  get matched driver-rider info
+    driver_id = driver_rider_pair[0]
+    rider_id = driver_rider_pair[1]
+
+    beta_t, beta_d, beta_s, beta_k, beta_c = get_coefficient_4_constraint()
+
+    value_result += beta_c
+    value_result += -beta_t * travel_time_matrix[driver_id][rider_id]
+    value_result += -beta_d * travel_distance_matrix[driver_id][rider_id]
+    value_result += -beta_k * rider_list[rider_id].get_rider_trip_distance
+    value_result += -beta_s*0.75* rider_list[rider_id].get_rider_trip_distance*PRICE
+    z = 1/(1+math.exp(value_result))
+    z = z * 0.25*rider_list[rider_id].get_rider_trip_distance*PRICE
+    print('~~~~~~~s is', 0.75* rider_list[rider_id].get_rider_trip_distance*PRICE)
+    total_result += z
+    print('~~~~~~~~~~z is ', z)
+    # model_acc.addConstr(q[i] == s[i] - 1)
+print('~~~~~~~~~~total result is ', total_result)
+    #model_uni.addConstr(q[i] == beta_s*0.75* rider_list[rider_id].get_rider_trip_distance - value_result)
+
+
 
 
