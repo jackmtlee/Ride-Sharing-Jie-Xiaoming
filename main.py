@@ -62,7 +62,7 @@ travel_distance_matrix = get_travel_distance_matrix_of_driver_origin_and_rider_o
 
 
 utility_matrix = get_driver_utility_matrix(driver_list, rider_list)
-print(utility_matrix)
+#print(utility_matrix)
 
 
 begin = datetime.now()
@@ -162,12 +162,12 @@ for v in model.getVars():
         matched_driver_index_list.append(i)
         matched_result_list.append(tuple((i, j)))
         print('driver {} with model type {} is assigned to rider {} with model type {}'.format(i, driver_list[i].get_driver_model_type, j, rider_list[j].get_rider_request_model_type))
-print('~~~~~~~~~~number of matched rider is ', number_of_matched_rider)
+#print('~~~~~~~~~~number of matched rider is ', number_of_matched_rider)
 
 
 '''print the matched pair'''
-for pair in matched_result_list:
-    print('driver {} is matched rider {}'.format(pair[0], pair[1]))
+#for pair in matched_result_list:
+    #print('driver {} is matched rider {}'.format(pair[0], pair[1]))
 # for v in model.getVars():
 #     if (v.VarName[:2] == 'dt') and ((v.index - NUMBER_OF_DRIVER*NUMBER_OF_RIDER) in matched_driver_index_list):
 #         print('var {} with value {}'.format(v.VarName, v.X))
@@ -186,7 +186,7 @@ NUMBER_OF_MATCHED_DRIVER = len(matched_result_list)
 # the decision variable for acceptance probality
 p = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, ub=1, vtype=GRB.CONTINUOUS, name='p')
 # the price that platform gives driver
-s = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=1.2, vtype=GRB.CONTINUOUS, name='s')
+s = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='s')
 # the auxiliary variable. f*(1-p) = p, exp(s-m) = f
 f = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name='f')
 # the auxiliary variable.  q = s-m,  exp(q) = f
@@ -195,7 +195,7 @@ q = model_acc.addVars(NUMBER_OF_MATCHED_DRIVER, lb=0, vtype=GRB.CONTINUOUS, name
 obj_expr_2 = QuadExpr()
 for i in range(len(matched_result_list)):
     driver_rider_pair = matched_result_list[i]
-    print('~~~~~~~~~~', driver_rider_pair)
+    print('', driver_rider_pair)
     rider = rider_list[driver_rider_pair[1]]
     #distance = PRICE*rider.get_rider_trip_distance
     #obj_expr_2.addTerms(distance, p[i])
@@ -234,6 +234,7 @@ for i in range(len(matched_result_list)):
     # model_acc.addConstr(q[i] == s[i] - 1)
 
     model_acc.addConstr(q[i] <= beta_s*s[i] - value_result)
+    #print('beta s is', beta_s)
 
 
 
@@ -241,26 +242,34 @@ model_acc.update()
 model_acc.optimize()
 
 ''''''
+
+average_p_list =[]
 for v in model_acc.getVars():
     if v.VarName[:1] == 'p' and v.X != 0.0:
-        print('driver {} matched rider {} with probablity {}'.format(matched_result_list[v.index][0], matched_result_list[v.index][1], v.X))
-        # print('var {} with value {}'.format(v.VarName, v.X))
+        #print('driver {} matched rider {} with probablity {}'.format(matched_result_list[v.index][0], matched_result_list[v.index][1], v.X))
+        print('{}'.format(v.X))
+        average_p_list.append(v.X)
 
+        # print('var {} with value {}'.format(v.VarName, v.X))
+print('average probability is: ', np.sum(average_p_list)/len(average_p_list))
 '''printing price'''
 for v in model_acc.getVars():
     if v.VarName[:1] == 's' and v.X != 0.0:
-        print('var name {} with value {} '.format(v.VarName, v.X))
+        #print('var name {} with value {} '.format(v.VarName, v.X))
+        print('{} '.format(v.X))
         # print('var {} with value {}'.format(v.VarName, v.X))
 
 
 '''
 the following is the decision with uniform price
 '''
-
+average_z_list =[]
 total_result = 0
 for i in range(len(matched_result_list)):
     value_result = 0
     z = 0
+    acceptance_value = 0
+    #reject_value = 0
 
     driver_rider_pair = matched_result_list[i]    #  get matched driver-rider info
     driver_id = driver_rider_pair[0]
@@ -268,18 +277,26 @@ for i in range(len(matched_result_list)):
 
     beta_t, beta_d, beta_s, beta_k, beta_c = get_coefficient_4_constraint()
 
-    value_result += beta_c
-    value_result += -beta_t * travel_time_matrix[driver_id][rider_id]
-    value_result += -beta_d * travel_distance_matrix[driver_id][rider_id]
+
+    value_result += beta_t * travel_time_matrix[driver_id][rider_id]
+    value_result += beta_d * travel_distance_matrix[driver_id][rider_id]
     value_result += -beta_k * rider_list[rider_id].get_rider_trip_distance
-    value_result += -beta_s*0.75* rider_list[rider_id].get_rider_trip_distance*PRICE
+    value_result += -beta_s*0.75* rider_list[rider_id].get_rider_trip_distance*PRICE*1.5
+    acceptance_value = -value_result
+    #print('acceptance_value is: ', acceptance_value)
+    value_result += beta_c
+    #print('value result: ', value_result)
+    #print('reject_value is: ', beta_c)
     z = 1/(1+math.exp(value_result))
-    z = z * 0.25*rider_list[rider_id].get_rider_trip_distance*PRICE
-    print('~~~~~~~s is', 0.75* rider_list[rider_id].get_rider_trip_distance*PRICE)
+    average_z_list.append(z)
+    print('', z)
+    z = z * 0.25*rider_list[rider_id].get_rider_trip_distance*PRICE*1.5
+    print('', 0.75* rider_list[rider_id].get_rider_trip_distance*PRICE*1.5)
     total_result += z
-    print('~~~~~~~~~~z is ', z)
+    #print('~~~~~~~~~~total result is ', z)
     # model_acc.addConstr(q[i] == s[i] - 1)
-print('~~~~~~~~~~total result is ', total_result)
+print('~~~~~~~~~~Ubers profit is by using uniform price ', total_result)
+print('average z is', np.sum(average_z_list)/len(average_z_list))
     #model_uni.addConstr(q[i] == beta_s*0.75* rider_list[rider_id].get_rider_trip_distance - value_result)
 
 
